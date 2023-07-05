@@ -18,6 +18,7 @@ complex_policy = 'min'
 key_cols = ['source', 'target', 'ligand_complex', 'receptor_complex']
 verbose = False
 base = 2.718281828459045
+prop_missing_allowed: float = 0.98,
 resource = None
 use_raw = True
 layer = None
@@ -26,13 +27,18 @@ seed = 1337
 
 
 # Test ALL Default parameters
-def test_liana_pipe_defaults_shape():
+def test_liana_pipe_defaults():
     all_defaults = liana_pipe(adata=adata,
                               groupby=groupby,
                               resource_name=resource_name,
                               expr_prop=expr_prop,
                               min_cells=min_cells,
                               de_method=de_method,
+                              est_fun=None,
+                              score_fun=None,
+                              met_est_resource_name=None,
+                              met_est_resource=None,
+                              prop_missing_allowed=prop_missing_allowed,
                               base=base,
                               n_perms=n_perms,
                               seed=seed,
@@ -51,7 +57,7 @@ def test_liana_pipe_defaults_shape():
     exp_defaults = read_csv(test_path.joinpath("data/all_defaults.csv"), index_col=0)
     exp_defaults.index = all_defaults.index
     assert_frame_equal(all_defaults, exp_defaults, check_dtype=False,
-                       check_exact=False, check_less_precise=True, check_index_type=False)
+                       check_exact=False, check_index_type=False, rtol=1e-3)
 
 
 # Test NOT Default parameters
@@ -63,6 +69,11 @@ def test_liana_pipe_not_defaults():
                               min_cells=min_cells,
                               de_method='wilcoxon',
                               base=base,
+                              est_fun=None,
+                              score_fun=None,
+                              met_est_resource_name=None,
+                              met_est_resource=None,
+                              prop_missing_allowed=prop_missing_allowed,
                               n_perms=n_perms,
                               seed=seed,
                               verbose=verbose,
@@ -82,7 +93,7 @@ def test_liana_pipe_not_defaults():
     exp_defaults = read_csv(test_path.joinpath("data/not_defaults.csv"), index_col=0)
     exp_defaults.index = not_defaults.index
     assert_frame_equal(not_defaults, exp_defaults, check_dtype=False,
-                       check_index_type=False, check_exact=False, check_less_precise=True)
+                       check_index_type=False, check_exact=False, rtol=1e-3)
 
 
 def test_expm1_fun():

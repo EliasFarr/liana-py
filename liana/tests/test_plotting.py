@@ -21,7 +21,7 @@ def test_check_dotplot_order():
     assert {'A', 'B', 'C'} == set(my_p.data.target)
 
 
-def test_check_doplot_filter():
+def test_check_dotplot_filter():
     my_p2 = dotplot(liana_res=liana_res,
                     size='specificity_rank',
                     colour='magnitude',
@@ -49,4 +49,10 @@ def test_dotplot_bysample():
     assert 'sample' in my_p3.data.columns
     assert 'B' not in my_p3.data['target']
     
-    
+
+def test_proximity_plot():
+    from liana.plotting import proximity_plot
+    from liana.testing import generate_toy_spatial
+    adata = generate_toy_spatial()
+    my_p4 = proximity_plot(adata=adata, idx=0)
+    assert my_p4 is not None

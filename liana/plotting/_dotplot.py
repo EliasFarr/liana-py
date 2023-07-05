@@ -9,7 +9,9 @@ from plotnine import ggplot, geom_point, aes, \
 
 
 def dotplot(adata: anndata.AnnData = None,
+            uns_key = 'liana_res',
             liana_res: pandas.DataFrame = None,
+            met: bool = False,
             colour: str = None,
             size: str = None,
             source_labels: list = None,
@@ -30,7 +32,9 @@ def dotplot(adata: anndata.AnnData = None,
     Parameters
     ----------
     adata
-        `AnnData` object with `liana_res` in `adata.uns`. Default is `None`.
+        `AnnData` object with `uns_key` in `adata.uns`. Default is `None`.
+    uns_key
+        key in adata.uns where liana_res is stored. Defaults to 'liana_res'.
     liana_res
         `liana_res` a `DataFrame` in liana's format
     colour
@@ -73,7 +77,9 @@ def dotplot(adata: anndata.AnnData = None,
                                 source_labels=source_labels,
                                 target_labels=target_labels,
                                 size=size,
-                                colour=colour)
+                                colour=colour,
+                                uns_key=uns_key,
+                                met=met,)
 
     if filterby is not None:
         msk = liana_res[filterby].apply(filter_lambda)
@@ -90,11 +96,20 @@ def dotplot(adata: anndata.AnnData = None,
             how = 'min'
         else:
             how = 'max'
-        top_lrs = _aggregate_scores(liana_res, what=orderby, how=how,
+
+        if met:
+            top_lrs = _aggregate_scores(liana_res, what=orderby, how=how,
+                                    entities=['interaction',
+                                              'ligand_name',
+                                              'receptor']
+            )
+        else:
+            top_lrs = _aggregate_scores(liana_res, what=orderby, how=how,
                                     entities=['interaction',
                                               'ligand_complex',
                                               'receptor_complex']
-                                    )
+            )
+    
         top_lrs = top_lrs.sort_values('score', ascending=orderby_ascending).head(top_n).interaction
         # Filter liana_res to the interactions in top_lrs
         liana_res = liana_res[liana_res.interaction.isin(top_lrs)]
@@ -135,8 +150,9 @@ def dotplot(adata: anndata.AnnData = None,
 
     
 def dotplot_by_sample(adata: anndata.AnnData  = None,
+                      uns_key: str = 'liana_res',
                       liana_res: pandas.DataFrame =None,
-                      sample_key: str ='sample',
+                      sample_key: str = 'sample',
                       colour: str  = None,
                       size: str = None,
                       inverse_colour: bool = False,
@@ -156,6 +172,8 @@ def dotplot_by_sample(adata: anndata.AnnData  = None,
     ----------
         adata
             adata object with liana_res and  in adata.uns. Defaults to None.
+        uns_key
+            key in adata.uns where liana_res is stored. Defaults to 'liana_res'.
         liana_res
             liana_res a DataFrame in liana's format. Defaults to None.
         sample_key
@@ -189,13 +207,13 @@ def dotplot_by_sample(adata: anndata.AnnData  = None,
     
     """
     
-    
     liana_res = _prep_liana_res(adata=adata,
                                 liana_res=liana_res, 
                                 source_labels=source_labels,
                                 target_labels=target_labels,
                                 size=size,
-                                colour=colour)
+                                colour=colour,
+                                uns_key=uns_key)
     
     if ligand_complex is not None:
         liana_res = liana_res[np.isin(liana_res['ligand_complex'], ligand_complex)]
@@ -241,17 +259,19 @@ def _prep_liana_res(adata=None,
                     source_labels=None,
                     target_labels=None,
                     colour=None,
-                    size=None):
+                    size=None,
+                    uns_key='liana_res', 
+                    met = False):
     if colour is None:
         raise ValueError('`colour` must be provided!')
     if size is None:
         raise ValueError('`size` must be provided!')
     
     if (liana_res is None) & (adata is None):
-        raise AttributeError('Ambiguous! One of `liana_res` or `adata` should be provided.')
+        raise AttributeError(f'Ambiguous! One of `liana_res` or `adata.uns[{uns_key}]` should be provided.')
     if adata is not None:
-        assert 'liana_res' in adata.uns_keys()
-        liana_res = adata.uns['liana_res'].copy()
+        assert uns_key in adata.uns_keys()
+        liana_res = adata.uns[uns_key].copy()
     if liana_res is not None:
         liana_res = liana_res.copy()
     if (liana_res is None) & (adata is None):
@@ -261,7 +281,10 @@ def _prep_liana_res(adata=None,
     liana_res = _filter_labels(liana_res, labels=source_labels, label_type='source')
     liana_res = _filter_labels(liana_res, labels=target_labels, label_type='target')
     
-    liana_res['interaction'] = liana_res['ligand_complex'] + ' -> ' + liana_res['receptor_complex']
+    if met:
+        liana_res['interaction'] = liana_res['ligand_name'] + ' -> ' + liana_res['receptor']
+    else:
+        liana_res['interaction'] = liana_res['ligand_complex'] + ' -> ' + liana_res['receptor_complex']
 
     return liana_res
 

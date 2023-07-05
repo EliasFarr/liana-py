@@ -1,15 +1,15 @@
 from liana.method._Method import Method, MethodMeta
-from ._cellphonedb import _simple_mean
+from numpy import mean
 
 
-def _connectome_score(x) -> tuple:
+def _connectome_score(x, **kwargs) -> tuple:
     """
     Calculate Connectome-like Score
 
     Parameters
     ----------
     x
-        DataFrame row
+        DataFrame
 
     Returns
     -------
@@ -17,23 +17,24 @@ def _connectome_score(x) -> tuple:
 
     """
     # magnitude
-    expr_prod = x.ligand_means * x.receptor_means
+    expr_prod = x['ligand_means'].values * x['receptor_means'].values
+    
     # specificity
-    scaled_weight = _simple_mean(x.ligand_zscores, x.receptor_zscores)
+    scaled_weight = mean((x['ligand_zscores'].values, x['receptor_zscores'].values), axis=0)
     return expr_prod, scaled_weight
 
 
 # Initialize CPDB Meta
 _connectome = MethodMeta(method_name="Connectome",
-                         complex_cols=['ligand_zscores', 'receptor_zscores',
-                                       'ligand_means', 'receptor_means'],
-                         add_cols=[],
+                         complex_cols=['ligand_means', 'receptor_means'],
+                         add_cols=['ligand_zscores', 'receptor_zscores'],
                          fun=_connectome_score,
                          magnitude='expr_prod',
                          magnitude_ascending=False,
                          specificity='scaled_weight',
                          specificity_ascending=False,
                          permute=False,
+                         met = False,
                          reference='Raredon, M.S.B., Yang, J., Garritano, J., Wang, M., Kushnir, '
                                    'D., Schupp, J.C., Adams, T.S., Greaney, A.M., Leiby, K.L., '
                                    'Kaminski, N. and Kluger, Y., 2022. Computation and '
@@ -43,4 +44,4 @@ _connectome = MethodMeta(method_name="Connectome",
                          )
 
 # Initialize callable Method instance
-connectome = Method(_SCORE=_connectome)
+connectome = Method(_method=_connectome)

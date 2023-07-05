@@ -18,8 +18,9 @@ def _sca_score(x):
 
     """
 
-    lr_sqrt = np.sqrt(x.ligand_means) * np.sqrt(x.receptor_means)
-    return lr_sqrt / (lr_sqrt + x.mat_mean), None
+    lr_sqrt = np.sqrt(x['ligand_means']) * np.sqrt(x['receptor_means'])
+    denominator = (lr_sqrt + x.mat_mean)
+    return lr_sqrt / denominator, None
 
 
 # Initialize CPDB Meta
@@ -32,6 +33,7 @@ _singlecellsignalr = MethodMeta(method_name="SingleCellSignalR",
                                 specificity=None,
                                 specificity_ascending=None,
                                 permute=False,
+                                met = False,
                                 reference='Cabello-Aguilar, S., Alame, M., Kon-Sun-Tack, F., Fau, '
                                           'C., Lacroix, M. and Colinge, J., '
                                           '2020. SingleCellSignalR: inference of intercellular '
@@ -40,4 +42,4 @@ _singlecellsignalr = MethodMeta(method_name="SingleCellSignalR",
                                 )
 
 # Initialize callable Method instance
-singlecellsignalr = Method(_SCORE=_singlecellsignalr)
+singlecellsignalr = Method(_method=_singlecellsignalr)

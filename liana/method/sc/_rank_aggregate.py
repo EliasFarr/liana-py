@@ -1,8 +1,10 @@
-from liana.method._Method import MethodMeta
-from liana.method._liana_pipe import liana_pipe
+from __future__ import annotations
+
+from ...method._Method import MethodMeta
+from ...method._liana_pipe import liana_pipe
 
 from anndata import AnnData
-from pandas import DataFrame, concat
+from pandas import DataFrame
 from typing import Optional
 
 
@@ -18,12 +20,11 @@ class AggregateClass(MethodMeta):
                          specificity=_SCORE.specificity,
                          specificity_ascending=True,
                          permute=_SCORE.permute,
-                         reference=_SCORE.reference
+                         reference=_SCORE.reference,
+                         met = _SCORE.met
                          )
         self._SCORE = _SCORE
         self.methods = methods
-        self.steady = 'steady_rank'
-        self.steady_ascending = True
 
         # Define sc to aggregate
         self.specificity_specs = {method.method_name: (
@@ -32,14 +33,6 @@ class AggregateClass(MethodMeta):
         self.magnitude_specs = {method.method_name: (
             method.magnitude, method.magnitude_ascending) for method in methods
             if method.magnitude is not None}
-
-        # If SingleCellSignalR is in there also add it to calculate method; TODO just remove this
-        methods_by_name = {method.method_name: method for method in methods}
-        if 'SingleCellSignalR' in methods_by_name.keys():
-            self.steady_specs = self.specificity_specs.copy()
-            self.steady_specs['SingleCellSignalR'] = \
-                (methods_by_name['SingleCellSignalR'].magnitude,
-                 methods_by_name['SingleCellSignalR'].magnitude_ascending)
 
         # Define additional columns needed depending on the methods to be run
         self.add_cols = list(
@@ -52,13 +45,9 @@ class AggregateClass(MethodMeta):
     def describe(self):
         """Briefly described the method"""
         print(
-            f"{self.method_name} returns `{self.magnitude}`, `{self.specificity}`,"
-            f" and `{self.steady}`. "
-            f"{self.magnitude} and {self.specificity} represent an aggregate of the "
+            f"{self.method_name} returns `{self.magnitude}`, `{self.specificity}`."
+            f"{self.magnitude} and {self.specificity} respectively represent an aggregate of the "
             f"`magnitude`- and `specificity`-related scoring functions from the different methods."
-            f"{self.steady} (DEPRECATED) represents one scoring function from each method intended"
-            f" to prioritize ligand-receptor interactions in steady-state data, "
-            f"regardless if they represent `specificity` or `magnitude`."
         )
 
     def __call__(self,
@@ -70,15 +59,18 @@ class AggregateClass(MethodMeta):
                  base: float = 2.718281828459045,
                  aggregate_method='rra',
                  return_all_lrs: bool = False,
+                 key_added : str = 'liana_res',
                  consensus_opts=None,
                  use_raw: Optional[bool] = True,
                  layer: Optional[str] = None,
                  de_method='t-test',
                  verbose: Optional[bool] = False,
-                 n_perms: int = 1000,
+                 n_perms: int | None = 1000 ,
                  seed: int = 1337,
+                 prop_missing_allowed: float = 0.98,
                  resource: Optional[DataFrame] = None,
-                 inplace=True):
+                 inplace=True
+                 ):
         """
         Parameters
         ----------
@@ -104,6 +96,8 @@ class AggregateClass(MethodMeta):
             Bool whether to return all LRs, or only those that surpass the `expr_prop`
             threshold. Those interactions that do not pass the `expr_prop` threshold will
             be assigned to the *worst* score of the ones that do. `False` by default.
+        key_added
+            Key to add the results to the `uns` attribute of `adata`.
         use_raw
             Use raw attribute of adata if present. True, by default.
         layer
@@ -115,7 +109,8 @@ class AggregateClass(MethodMeta):
             Verbosity flag
         n_perms
             Number of permutations for the permutation test. Note that this is relevant
-            only for permutation-based methods - e.g. `CellPhoneDB`
+            only for permutation-based methods - e.g. `CellPhoneDB`. If `None` is passed, 
+            no permutation testing is performed. Thus, specificity_rank is not returned. 
         seed
             Random seed for reproducibility.
         resource
@@ -138,6 +133,11 @@ class AggregateClass(MethodMeta):
                                resource=resource,
                                expr_prop=expr_prop,
                                min_cells=min_cells,
+                               met_est_resource_name=None,
+                               met_est_resource=None,
+                               est_fun=None,
+                               score_fun=None,
+                               prop_missing_allowed=prop_missing_allowed,
                                base=base,
                                return_all_lrs=return_all_lrs,
                                de_method=de_method,
@@ -151,7 +151,7 @@ class AggregateClass(MethodMeta):
                                _aggregate_method=aggregate_method,
                                _consensus_opts=consensus_opts
                                )
-        adata.uns['liana_res'] = liana_res
+        adata.uns[key_added] = liana_res
 
         return None if inplace else liana_res
 
@@ -165,6 +165,7 @@ _rank_aggregate_meta = \
                specificity='specificity_rank',
                specificity_ascending=True,
                permute=False,
+               met=False,
                reference='Dimitrov, D., Türei, D., Garrido-Rodriguez, M., Burmedi, P.L., '
                          'Nagai, J.S., Boys, C., Ramirez Flores, R.O., Kim, H., Szalai, B., '
                          'Costa, I.G. and Valdeolivas, A., 2022. Comparison of methods and '
